@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Join Game: {{ game.name }} ({{ game_id }})</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 40px; }
+      h1 { margin-bottom: 0.5em; }
+      form { margin-top: 1em; max-width: 500px; }
+      label { display: block; margin-top: 0.5em; }
+      input[type="text"] { width: 100%; padding: 0.5em; margin-top: 0.2em; }
+      input[type="submit"] { margin-top: 1em; padding: 0.6em 1.2em; }
+    </style>
+</head>
+<body>
+  <h1>Join Game: {{ game.name }} (ID: {{ game_id }})</h1>
+  <form action="{{ url_for('join_game') }}" method="POST">
+    <input type="hidden" name="game_id" value="{{ game_id }}">
+    <label for="player_name">Your Name:</label>
+    <input type="text" name="player_name" id="player_name" placeholder="e.g. 'Alice'" required>
+
+    <label for="repo_url">Your GitHub Repo URL:</label>
+    <input type="text" name="repo_url" id="repo_url" placeholder="https://github.com/username/repo.git" required>
+
+    <input type="submit" value="Join Game">
+  </form>
+
+  <p style="margin-top: 2em;">
+    <a href="{{ url_for('index') }}">← Back to Home</a>
+  </p>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard: {{ game.name }} ({{ game_id }})</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 40px; }
+      h1 { margin-bottom: 0.2em; }
+      .status { margin-bottom: 1em; }
+      table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+      th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
+      th { background: #f2f2f2; }
+      .controls { margin-top: 1em; }
+      .controls form { display: inline-block; margin-right: 1em; }
+      .controls input[type="submit"] { padding: 0.5em 1em; }
+    </style>
+</head>
+<body>
+  <h1>Admin Dashboard</h1>
+  <div class="status">
+    <strong>Game:</strong> {{ game.name }}<br>
+    <strong>Game ID:</strong> {{ game_id }}<br>
+    <strong>Status:</strong> {{ game.status|capitalize }}
+  </div>
+
+  <div class="controls">
+    {% if game.status == 'running' %}
+      <form action="{{ url_for('pause_game', game_id=game_id) }}" method="POST">
+        <input type="submit" value="Pause Game">
+      </form>
+      <form action="{{ url_for('stop_game', game_id=game_id) }}" method="POST">
+        <input type="submit" value="Stop Game">
+      </form>
+    {% elif game.status == 'paused' %}
+      <form action="{{ url_for('resume_game', game_id=game_id) }}" method="POST">
+        <input type="submit" value="Resume Game">
+      </form>
+      <form action="{{ url_for('stop_game', game_id=game_id) }}" method="POST">
+        <input type="submit" value="Stop Game">
+      </form>
+    {% endif %}
+  </div>
+
+  <h2>Players & Scores</h2>
+  {% if game.players %}
+    <table>
+      <thead>
+        <tr>
+          <th>Player ID</th>
+          <th>Player Name</th>
+          <th>Repository</th>
+          <th>Score</th>
+          <th>Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pid, p in game.players.items() %}
+        <tr>
+          <td>{{ pid }}</td>
+          <td>{{ p.name }}</td>
+          <td>{{ p.repo_full_name }}</td>
+          <td>{{ p.score }}</td>
+          <td>{{ p.latest_feedback }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No players have joined yet.</p>
+  {% endif %}
+
+  <p style="margin-top: 2em;">
+    <a href="{{ url_for('index') }}">← Back to Home</a>
+  </p>
+</body>
+</html>

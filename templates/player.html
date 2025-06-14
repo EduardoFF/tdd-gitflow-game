@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Player View - {{ player.name }} (Game {{ game_id }})</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 40px; }
+      h1 { margin-bottom: 0.5em; }
+      .info { margin-top: 1em; }
+      .info p { font-size: 1.1em; }
+      #score { font-size: 2em; font-weight: bold; margin-top: 0.2em; }
+      #message { font-size: 1.2em; margin-top: 0.5em; color: #333; }
+      #status { margin-top: 1em; color: #800; }
+    </style>
+</head>
+<body>
+  <h1>Hi, {{ player.name }}!</h1>
+  <div class="info">
+    <p><strong>Game ID:</strong> {{ game_id }}</p>
+    <p><strong>Your Player ID:</strong> {{ player_id }}</p>
+    <p><strong>Repository:</strong> {{ player.repo_full_name }}</p>
+  </div>
+
+  <div id="status"></div>
+
+  <div class="scores">
+    <p>Your Current Score:</p>
+    <div id="score">{{ player.score }}</div>
+    <p>Your Feedback Message:</p>
+    <div id="message">{{ player.message }}</div>
+  </div>
+
+  <p style="margin-top: 2em;">
+    <a href="{{ url_for('index') }}">← Back to Home</a>
+  </p>
+
+  <script>
+    const gameId = "{{ game_id }}";
+    const playerId = "{{ player_id }}";
+
+    // Poll every 5 seconds for the latest score/message
+    function fetchScore() {
+      fetch(`/score/${gameId}/${playerId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            document.getElementById('status').innerText = data.error;
+            return;
+          }
+          // If game is paused or stopped, show a notice
+          if (data.status === 'paused') {
+            document.getElementById('status').innerText = "🟡 The game is currently PAUSED.";
+          } else if (data.status === 'stopped') {
+            document.getElementById('status').innerText = "🔴 The game has been STOPPED.";
+          } else {
+            document.getElementById('status').innerText = "";
+          }
+          document.getElementById('score').innerText = data.score;
+          document.getElementById('message').innerText = data.message;
+        })
+        .catch(err => {
+          console.error("Error fetching score:", err);
+          document.getElementById('status').innerText = "Error connecting to server.";
+        });
+    }
+
+    // Start polling after page load
+    setInterval(fetchScore, 5000);
+  </script>
+</body>
+</html>

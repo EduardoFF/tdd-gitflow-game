@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TDD Game Home</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 40px; }
+      h1 { margin-bottom: 0.5em; }
+      .container { max-width: 600px; margin: auto; }
+      form { margin-top: 1em; }
+      label { display: block; margin-top: 0.5em; }
+      input[type="text"] { width: 100%; padding: 0.5em; margin-top: 0.2em; }
+      input[type="submit"] { margin-top: 1em; padding: 0.6em 1.2em; }
+    </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Welcome to TDD Game</h1>
+
+    <!-- Create a new game -->
+    <section>
+      <h2>Create a New Game</h2>
+      <form action="{{ url_for('create_game') }}" method="POST">
+        <label for="game_name">Game Name:</label>
+        <input type="text" name="game_name" id="game_name" placeholder="e.g. 'Sprint TDD Battle'" required>
+        <input type="submit" value="Create Game">
+      </form>
+    </section>
+
+    <hr>
+
+    <!-- Join an existing game by ID -->
+    <section>
+      <h2>Join an Existing Game</h2>
+      <form action="{{ url_for('join_form', game_id='') }}" method="GET" onsubmit="return goToGame()">
+        <label for="join_game_id">Enter Game ID:</label>
+        <input type="text" name="game_id" id="join_game_id" placeholder="e.g. ABC123" required>
+        <input type="submit" value="Join Game">
+      </form>
+    </section>
+  </div>
+
+  <script>
+    function goToGame() {
+      const gid = document.getElementById('join_game_id').value.trim().toUpperCase();
+      if (!gid) return false;
+      window.location.href = "{{ url_for('join_form', game_id='__REPLACE__') }}".replace('__REPLACE__', gid);
+      return false;
+    }
+  </script>
+</body>
+</html>

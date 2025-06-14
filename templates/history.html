@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Commit History – {{ player.name }} (Game {{ game_id }})</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    h1, h2 { margin-top: 1em; }
+    table { width: 100%; border-collapse: collapse; margin-top: 0.5em; }
+    th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
+    th { background: #f2f2f2; }
+  </style>
+</head>
+<body>
+  <h1>Commit History</h1>
+  <h2>Game: {{ game_id }} &ndash; Player: {{ player.name }}</h2>
+  {% if player.history %}
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Commit SHA</th>
+          <th>Branch</th>
+          <th>Classification</th>
+          <th>Passed Tests</th>
+          <th>Refactoring</th>
+          <th>Merge</th>
+          <th>Score</th>
+          <th>Feedback</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in player.history %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ entry.commit[:7] }}</td>
+          <td>{{ entry.branch }}</td>
+          <td>{{ entry.analysis.commit_classify }}</td>
+          <td>{{ entry.analysis.tests_passed }}</td>
+          <td>{{ entry.analysis.is_refactoring }}</td>
+          <td>{{ entry.is_merge }}</td>
+          <td>{{ entry.score }}</td>
+          <td>{{ entry.feedback }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No commits processed yet for this player.</p>
+    {% endif %}
+
+  <p style="margin-top: 2em;"><a href="{{ url_for('index') }}">← Back to Home</a></p>
+</body>
+</html>
