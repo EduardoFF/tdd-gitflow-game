@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin: {{ player.name }} – Game {{ game_id }}</title>
+  <style>
+    body { background: #0d1117; color: #c9d1d9; font-family: 'Source Code Pro', monospace; margin: 20px; }
+    h1, h2 { margin: 16px 0; }
+    a { color: #58a6ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .controls { margin-bottom: 20px; }
+    .controls form { display: inline-block; margin-right: 12px; }
+    .controls button {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+    .controls button:hover { background: #30363d; }
+
+    .history-container { overflow-x: auto; }
+    table.history {
+      width: 100%; border-collapse: collapse;
+      background: #161b22; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    table.history th, table.history td {
+      padding: 12px 16px; border-bottom: 1px solid #30363d; text-align: left;
+      white-space: nowrap;
+    }
+    table.history th {
+      background: #21262d; color: #8b949e; position: sticky; top: 0;
+    }
+    table.history tr:nth-child(even) { background: #161b22; }
+    table.history tr:nth-child(odd)  { background: #0d1117; }
+
+    .icon { font-size: 1.2em; vertical-align: middle; }
+    .green { color: #3fb950; }
+    .red   { color: #da3633; }
+    .refactor { color: #d29922; }
+    .unknown  { color: #8b949e; }
+
+    @media (max-width: 600px) {
+      .controls button { padding: 6px 10px; font-size: 0.8em; }
+      table.history th, table.history td { padding: 8px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Admin: {{ player.name }} (Game {{ game_id }})</h1>
+
+  <div class="controls">
+    <form action="{{ url_for('pause_player', game_id=game_id, player_id=player_id) }}" method="POST">
+      <button type="submit">{% if player.paused %}Resume{% else %}Pause{% endif %} Player</button>
+    </form>
+    <form action="{{ url_for('reset_history', game_id=game_id, player_id=player_id) }}" method="POST">
+      <button type="submit">Reset History</button>
+    </form>
+    <a href="{{ url_for('admin_dashboard', game_id=game_id) }}">← Back to Game</a>
+  </div>
+
+  <h2>Commit History</h2>
+  <div class="history-container">
+    <table class="history">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>SHA</th>
+          <th>Branch</th>
+          <th>Classification</th>
+          <th>Tests</th>
+          <th>Refactor</th>
+          <th>Merge</th>
+          <th>Score</th>
+          <th>Feedback</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in player.history %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ entry.commit[:7] }}</td>
+          <td>{{ entry.branch }}</td>
+          <td>
+            {% if entry.analysis.commit_classify == 'green' %}
+              <span class="icon green">🟢</span>
+            {% elif entry.analysis.commit_classify == 'red' %}
+              <span class="icon red">🔴</span>
+            {% elif entry.analysis.commit_classify == 'refactor' %}
+              <span class="icon refactor">🔄</span>
+            {% else %}
+              <span class="icon unknown">❔</span>
+            {% endif %}
+          </td>
+          <td>{{ entry.analysis.passed_tests and '✔️' or '❌' }}</td>
+          <td>{{ entry.analysis.is_refactoring and '✔️' or '❌' }}</td>
+          <td>{{ entry.analysis.is_merge and '✔️' or '❌' }}</td>
+          <td>{{ entry.score }}</td>
+          <td>{{ entry.feedback }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

@@ -1,70 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Player View - {{ player.name }} (Game {{ game_id }})</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 40px; }
-      h1 { margin-bottom: 0.5em; }
-      .info { margin-top: 1em; }
-      .info p { font-size: 1.1em; }
-      #score { font-size: 2em; font-weight: bold; margin-top: 0.2em; }
-      #message { font-size: 1.2em; margin-top: 0.5em; color: #333; }
-      #status { margin-top: 1em; color: #800; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Player Dashboard – {{ player.name }}</title>
+  <style>
+    /* Base */
+    body {
+      margin: 0; padding: 20px;
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'Source Code Pro', monospace;
+      line-height: 1.4;
+    }
+    a { color: #58a6ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1, h2 { margin: 16px 0; }
+    #status { margin: 12px 0; font-weight: bold; }
+
+    /* Scoreboard */
+    .scoreboard-container {
+      overflow-x: auto;
+      margin-bottom: 32px;
+    }
+    table.scoreboard {
+      width: 100%; border-collapse: collapse;
+      background: #161b22;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    .scoreboard th, .scoreboard td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #30363d;
+      text-align: left;
+    }
+    .scoreboard th {
+      background: #21262d;
+      color: #8b949e;
+      position: sticky;
+      top: 0;
+    }
+    .scoreboard tr.highlight {
+      background: #183447;
+    }
+
+    /* Commit History */
+    .history-container { overflow-x: auto; }
+    table.history {
+      width: 100%; border-collapse: collapse;
+      background: #161b22;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    table.history th, table.history td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #30363d;
+      text-align: left;
+      white-space: nowrap;
+    }
+    table.history th {
+      background: #21262d;
+      color: #8b949e;
+      position: sticky;
+      top: 0;
+    }
+    table.history tr:nth-child(even) { background: #161b22; }
+    table.history tr:nth-child(odd) { background: #0d1117; }
+    table.history tr.highlight { background: #1b3b4d; }
+
+    /* Classification Icons */
+    .icon { font-size: 1.2em; vertical-align: middle; }
+    .green { color: #3fb950; }
+    .red   { color: #da3633; }
+    .refactor { color: #d29922; }
+    .unknown  { color: #8b949e; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      body { padding: 12px; }
+      .scoreboard th, .scoreboard td,
+      .history th, .history td { padding: 8px; }
+      .icon { font-size: 1em; }
+    }
+  </style>
 </head>
 <body>
-  <h1>Hi, {{ player.name }}!</h1>
-  <div class="info">
-    <p><strong>Game ID:</strong> {{ game_id }}</p>
-    <p><strong>Your Player ID:</strong> {{ player_id }}</p>
-    <p><strong>Repository:</strong> {{ player.repo_full_name }}</p>
-  </div>
-
+  <h1>Welcome, {{ player.name }}!</h1>
   <div id="status"></div>
 
-  <div class="scores">
-    <p>Your Current Score:</p>
-    <div id="score">{{ player.score }}</div>
-    <p>Your Feedback Message:</p>
-    <div id="message">{{ player.message }}</div>
+  <h2>Scoreboard</h2>
+  <div class="scoreboard-container">
+    <table class="scoreboard">
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pid, p in players.items() %}
+        <tr class="{% if pid == player_id %}highlight{% endif %}">
+          <td>{{ p.name }}</td>
+          <td>{{ p.score }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 
-  <p style="margin-top: 2em;">
-    <a href="{{ url_for('index') }}">← Back to Home</a>
-  </p>
+  <h2>Your Commit History & Feedback</h2>
+  {% if player.history %}
+  <div class="history-container">
+    <table class="history">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>SHA</th>
+          <th>Branch</th>
+          <th>Type</th>
+          <th>Tests</th>
+          <th>Score</th>
+          <th>Feedback</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in player.history %}
+        <tr class="{% if loop.last %}highlight{% endif %}">
+          <td>{{ loop.index }}</td>
+          <td>{{ entry.commit[:7] }}</td>
+          <td>{{ entry.branch }}</td>
+          <td>
+            {% if entry.analysis.commit_classify == 'green' %}
+              <span class="icon green">🟢</span>
+            {% elif entry.analysis.commit_classify == 'red' %}
+              <span class="icon red">🔴</span>
+            {% elif entry.analysis.commit_classify == 'refactor' %}
+              <span class="icon refactor">🔄</span>
+            {% else %}
+              <span class="icon unknown">❔</span>
+            {% endif %}
+          </td>
+          <td>{{ entry.analysis.passed_tests and '✔️' or '❌' }}</td>
+          <td>{{ entry.score }}</td>
+          <td>{{ entry.feedback }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p>No commits processed yet for this player.</p>
+  {% endif %}
+
+  <p><a href="{{ url_for('index') }}">← Back to Home</a></p>
 
   <script>
     const gameId = "{{ game_id }}";
     const playerId = "{{ player_id }}";
-
-    // Poll every 5 seconds for the latest score/message
     function fetchScore() {
       fetch(`/score/${gameId}/${playerId}`)
         .then(res => res.json())
         .then(data => {
-          if (data.error) {
-            document.getElementById('status').innerText = data.error;
-            return;
-          }
-          // If game is paused or stopped, show a notice
-          if (data.status === 'paused') {
-            document.getElementById('status').innerText = "🟡 The game is currently PAUSED.";
-          } else if (data.status === 'stopped') {
-            document.getElementById('status').innerText = "🔴 The game has been STOPPED.";
-          } else {
-            document.getElementById('status').innerText = "";
-          }
-          document.getElementById('score').innerText = data.score;
-          document.getElementById('message').innerText = data.message;
-        })
-        .catch(err => {
-          console.error("Error fetching score:", err);
-          document.getElementById('status').innerText = "Error connecting to server.";
+          const status = document.getElementById('status');
+          if (data.status === 'paused') status.innerText = "🟡 Game Paused";
+          else if (data.status === 'stopped') status.innerText = "🔴 Game Stopped";
+          else status.innerText = "";
+
+          // Update scoreboard
+          document.querySelectorAll('table.scoreboard tbody tr').forEach(row => {
+            if (row.classList.contains('highlight')) {
+              row.children[1].innerText = data.score;
+            }
+          });
         });
     }
-
-    // Start polling after page load
     setInterval(fetchScore, 5000);
   </script>
 </body>

@@ -56,7 +56,7 @@
       <tbody>
         {% for pid, p in game.players.items() %}
         <tr>
-          <td>{{ pid }}</td>
+          <td><a href="{{ url_for('admin_player_view', game_id=game_id, player_id=pid) }}">{{ pid }}</a></td>
           <td>{{ p.name }}</td>
           <td>{{ p.repo_full_name }}</td>
           <td>{{ p.score }}</td>
