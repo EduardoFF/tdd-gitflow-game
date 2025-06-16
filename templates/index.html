@@ -1,43 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>TDD Game Home</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 40px; }
-      h1 { margin-bottom: 0.5em; }
-      .container { max-width: 600px; margin: auto; }
-      form { margin-top: 1em; }
-      label { display: block; margin-top: 0.5em; }
-      input[type="text"] { width: 100%; padding: 0.5em; margin-top: 0.2em; }
-      input[type="submit"] { margin-top: 1em; padding: 0.6em 1.2em; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TDD-Gitflow Game Home</title>
+  <style>
+    body {
+      margin: 0; padding: 20px;
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'Source Code Pro', monospace;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+    }
+    h1 { font-size: 2em; margin-bottom: 0.5em; }
+    h2 { margin-top: 1.5em; }
+    form { margin-top: 1em; }
+    label { display: block; margin: 0.75em 0 0.25em; }
+    input[type="text"], select {
+      width: 100%; padding: 10px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      font-family: inherit;
+    }
+    input[type="submit"] {
+      margin-top: 1em; padding: 10px 20px;
+      background: #238636;
+      border: none; color: #fff;
+      cursor: pointer; font-weight: bold;
+    }
+    input[type="submit"]:hover {
+      background: #2ea043;
+    }
+    hr {
+      border: none; border-top: 1px solid #30363d;
+      margin: 2em 0;
+    }
+
+    /* Games table */
+    .games-container { overflow-x: auto; margin-top: 1em; }
+    table.games {
+      width: 100%; border-collapse: collapse;
+      background: #161b22;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    table.games th, table.games td {
+      padding: 12px 16px; border-bottom: 1px solid #30363d;
+      text-align: left;
+    }
+    table.games th {
+      background: #21262d; color: #8b949e;
+      position: sticky; top: 0;
+    }
+    table.games tr:nth-child(even) { background: #161b22; }
+    table.games tr:nth-child(odd)  { background: #0d1117; }
+    table.games a { color: #58a6ff; text-decoration: none; }
+    table.games a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      body { padding: 12px; }
+      table.games th, table.games td { padding: 8px 10px; }
+    }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h1>Welcome to TDD Game</h1>
+    <h1>Welcome to TDD-Gitflow Game</h1>
 
-    <!-- Create a new game -->
-    <section>
-      <h2>Create a New Game</h2>
-      <form action="{{ url_for('create_game') }}" method="POST">
-        <label for="game_name">Game Name:</label>
-        <input type="text" name="game_name" id="game_name" placeholder="e.g. 'Sprint TDD Battle'" required>
-        <input type="submit" value="Create Game">
-      </form>
-    </section>
+    <h2>Create a New Game</h2>
+    <form action="{{ url_for('create_game') }}" method="POST">
+      <label for="game_name">Game Name:</label>
+      <input type="text" name="game_name" id="game_name" placeholder="e.g. 'FizzBuzz Showdown'" required>
+      <input type="submit" value="Create Game">
+    </form>
 
     <hr>
 
-    <!-- Join an existing game by ID -->
-    <section>
-      <h2>Join an Existing Game</h2>
-      <form action="{{ url_for('join_form', game_id='') }}" method="GET" onsubmit="return goToGame()">
-        <label for="join_game_id">Enter Game ID:</label>
-        <input type="text" name="game_id" id="join_game_id" placeholder="e.g. ABC123" required>
-        <input type="submit" value="Join Game">
-      </form>
-    </section>
+    <h2>Join an Existing Game</h2>
+    <form action="{{ url_for('join_form', game_id='') }}" method="GET" onsubmit="return goToGame()">
+      <label for="join_game_id">Enter Game ID:</label>
+      <input type="text" name="game_id" id="join_game_id" placeholder="e.g. ABC123" required>
+      <input type="submit" value="Join Game">
+    </form>
+
+    <hr>
+
+    <h2>Active Games</h2>
+    {% if games %}
+    <div class="games-container">
+      <table class="games">
+        <thead>
+          <tr><th>Game ID</th><th>Game Name</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          {% for gid, g in games.items() if g.status == 'running' %}
+          <tr>
+            <td>{{ gid }}</td>
+            <td>{{ g.name }}</td>
+            <td><a href="{{ url_for('scoreboard_view', game_id=gid) }}">View Scoreboard</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p>No active games. Create one above!</p>
+    {% endif %}
+
+    <p style="margin-top: 2em;">
+      <a href="#">Learn more about TDD & GitFlow →</a>
+    </p>
   </div>
 
   <script>
