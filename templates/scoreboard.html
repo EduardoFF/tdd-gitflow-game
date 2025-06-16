@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Game Scoreboard – {{ game.name }}</title>
+  <style>
+    body {
+      margin: 0; padding: 20px;
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'Source Code Pro', monospace;
+    }
+    h1 { font-size: 2em; margin-bottom: 0.5em; }
+    .fire { color: #ff6a00; margin-left: 8px; }
+    .scoreboard-container { overflow-x: auto; }
+    table.scoreboard {
+      width: 100%; border-collapse: collapse;
+      background: #161b22;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    table.scoreboard th, table.scoreboard td {
+      padding: 12px 16px; border-bottom: 1px solid #30363d;
+      text-align: left; white-space: nowrap;
+    }
+    table.scoreboard th {
+      background: #21262d; color: #8b949e;
+      position: sticky; top: 0;
+    }
+    table.scoreboard tr:nth-child(even) { background: #161b22; }
+    table.scoreboard tr:nth-child(odd)  { background: #0d1117; }
+    table.scoreboard tr.top-team { background: #2d3b45; }
+    table.scoreboard a { color: #58a6ff; text-decoration: none; }
+    table.scoreboard a:hover { text-decoration: underline; }
+    @media (max-width: 600px) {
+      table.scoreboard th, table.scoreboard td { padding: 8px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Game: {{ game.name }}<span class="fire">🔥</span></h1>
+  <h2>Scoreboard</h2>
+  <div class="scoreboard-container">
+    <table class="scoreboard">
+      <thead>
+        <tr>
+          <th>Team</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pid, p in players.items() %}
+        <tr data-player="{{ pid }}" class="{% if loop.first %}top-team{% endif %}">
+          <td><a href="{{ url_for('player_view', game_id=game_id, player_id=pid) }}">{{ p.name }}</a></td>
+          <td class="score">{{ p.score }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <script>
+    const gameId = "{{ game_id }}";
+    function refreshScores() {
+      fetch(`/player/${gameId}/scores`)
+        .then(res => res.json())
+        .then(data => {
+          data.players.forEach(item => {
+            const row = document.querySelector(`tr[data-player="${item.id}"]`);
+            if (row) row.querySelector('.score').innerText = item.score;
+          });
+        });
+    }
+    setInterval(refreshScores, 2000);
+  </script>
+</body>
+</html>
