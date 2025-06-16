@@ -7,7 +7,23 @@ import subprocess
 import logging
 from flask import Flask, render_template, request, redirect, url_for, jsonify, abort
 from commit_analysis import classify_commits, classify_commit, is_merge_commit, get_commit_other_parents
+from score import score_all
 
+from db import (
+    list_games,
+    create_game_entry,
+    get_game,
+    load_game_with_histories,
+    update_game_status,
+    list_players,
+    create_player_entry,
+    get_player,
+    update_player_field,
+    append_history_entry,
+    reset_player,
+    get_history,
+    populate_db
+)
 
 
 app = Flask(__name__)
@@ -20,73 +36,6 @@ app = Flask(__name__)
 
 # Set the logging level
 app.logger.setLevel(logging.INFO)
-
-# -----------------------------------------------------------------------------
-# In‐memory storage for games.
-#
-# Each player now has a 'history' list of dicts:
-#   { "commit": <sha>, "score": <int>, "feedback": <string> }
-#
-# We also keep 'last_commit' to know where to resume pulling.
-# For convenience, we also store 'score' and 'latest_feedback' at the top‐level
-# of player_data, so the admin dashboard (which reads p.score and p.message) still works.
-#
-# Structure:
-# games = {
-#   "GAMEID": {
-#     "name": "Game Name",
-#     "status": "running" | "paused" | "stopped",
-#     "players": {
-#       "PLAYERID": {
-#         "name": "Alice",
-#         "repo_full_name": "username/repo",
-#         "score": 0,               # same as history[-1]['score']
-#         "latest_feedback": "",    # same as history[-1]['feedback']
-#         "last_commit": None,
-#         "repo_path": "cloned_repos/GAMEID/PLAYERID",
-#         "history": [
-#             { "commit": "<sha1>", "score": 1, "feedback": "..." },
-#             { "commit": "<sha2>", "score": 2, "feedback": "..." },
-#             ...
-#         ]
-#       },
-#       ...
-#     }
-#   },
-#   ...
-# }
-# -----------------------------------------------------------------------------
-games = {
-     "GAMEID": {
-         "name": "My TDD Battle",
-         "status": "running",
-         "players": {
-             # "PLAYERID": {
-             #     "name": "Test1",
-             #     "repo_full_name": "EduardoFF/fizzbuzz-tdd-inclass",
-             #     "score": 0,
-             #     "latest_feedback": "",    # same as history[-1]['feedback']
-             #     "last_commit": None,
-             #     "is_local": True,  # repo is local
-             #     "repo_path": "cloned_repos/GAMEID/PLAYERID",
-             #     "history": []
-
-             # },
-             "TESTER": {
-                 "name": "TestLocal",
-                 "repo_full_name": "LOCAL/fizzbuzz-tdd-inclass",
-                 "score": 0,
-                 "latest_feedback": "",    # same as history[-1]['feedback']
-                 "last_commit": None,
-                 "is_local": True,  # repo is local
-                 "repo_path": "cloned_repos/GAMEID/TESTER",
-                 "history": []
-             },
-
-         }
-     }
-}
-#games = {}
 
 
 # Base directory where all repos will be cloned
@@ -176,7 +125,7 @@ def fetch_new_commits(local_path, last_commit, branch='main'):
 
     Returns None on error, or [] if no new commits, or a list of SHAs.
     """
-    if last_commit is None:
+    if last_commit == '':
         # All commits:
         shas = get_all_commit_shas(local_path, branch)
         return shas  # may be [] if empty repo
@@ -200,22 +149,36 @@ def initialize_or_pull_repo(game_id, player_id, player_data):
       - Compute commit_count for the new HEAD
       - Return (new_head, commit_count, list_of_new_shas) or (None, None, None) on error.
     """
-    local_path = player_data['repo_path']
+
+    game = get_game(game_id)
+    if not game:
+        abort(404,description="Game not found")
+
+    player = get_player(game_id, player_id)
+    if not player:
+        abort(404, description="Player not found")
+
+    local_path = player['repo_path']
     os.makedirs(local_path, exist_ok=True)
 
+
     # 1) If the directory doesn't exist, do a 'git clone <url> <local_path>'
-    if not os.path.isdir(os.path.join(local_path, '.git')) and not player_data.get('is_local', False):
+    if not os.path.isdir(os.path.join(local_path, '.git')) and not player.get('is_local', False):
         clone_url = f"https://github.com/{player_data['repo_full_name']}.git"
         print(f"cloning {clone_url} into {local_path}")
         ret, out, err = run_subprocess(['git', 'clone', clone_url, local_path])
         if ret != 0:
             print("Error", ret, out, err)
-            player_data['latest_feedback'] = f"Error cloning: {err}"
+            update_player_field(game_id, player_id,
+                                'latest_feedback',
+                                f"Error cloning: {err}")
             return (None, None, None)
 
     ret, out, err = run_subprocess(['git', 'checkout', 'main'], cwd=local_path)
     if ret != 0:
-        player_data['latest_feedback'] = f"Error checking out main {err}"
+        update_player_field(game_id, player_id,
+                            'latest_feedback',
+                            f"Error checking out: {err}")
         return (None, None, None)
 
     # 2) Do 'git pull' inside local_path
@@ -223,13 +186,17 @@ def initialize_or_pull_repo(game_id, player_id, player_data):
 
         ret, out, err = run_subprocess(['git', 'pull'], cwd=local_path)
         if ret != 0:
-            player_data['latest_feedback'] = f"Error pulling: {err}"
+            update_player_field(game_id, player_id,
+                            'latest_feedback',
+                                f"Error pulling: {err}")
             return (None, None, None)
 
     # 3) Get current HEAD commit hash: `git rev-parse HEAD`
     ret, head_hash, err = run_subprocess(['git', 'rev-parse', 'HEAD'], cwd=local_path)
     if ret != 0:
-        player_data['latest_feedback'] = f"Error rev-parse: {err}"
+        update_player_field(game_id, player_id,
+                            'latest_feedback',
+                            f"Error rev-parse: {err}")
         return (None, None, None)
     head_hash = head_hash.strip()
 
@@ -239,7 +206,9 @@ def initialize_or_pull_repo(game_id, player_id, player_data):
     # 5) Determine which SHAs are new (relative to player_data['last_commit'])
     new_shas = fetch_new_commits(local_path, player_data.get('last_commit'))
     if new_shas is None:
-        player_data['latest_feedback'] = "Error retrieving commit SHAs."
+        update_player_field(game_id, player_id,
+                            'latest_feedback',
+                            "Error retrieving commit SHAs.")
         return (None, None, None)
 
     return (head_hash, commit_count, new_shas)
@@ -263,12 +232,12 @@ def poll_repos_loop():
     while True:
         time.sleep(5)
         app.logger.info("Polling...")
-
-        for game_id, game_data in list(games.items()):
+        for game_id in list_games():
+            game_data = load_game_with_histories(game_id)
             if game_data['status'] != 'running':
                 continue
-
-            for player_id, player_data in list(game_data['players'].items()):
+            for player_id in list_players(game_id):
+                player_data = game_data['players'].get(player_id)
                 # If the game was paused/stopped in the meantime, skip
                 if game_data['status'] != 'running':
                     continue
@@ -281,13 +250,13 @@ def poll_repos_loop():
 
                 #classify_commits(player_data.get('repo_path'))
                 last_head = player_data.get('last_commit')
+                print('last head: ', last_head)
                 if not new_shas:
                     # No new commits → skip
                     continue
 
                 # Process each new commit SHA in chronological order (only for main)
-                processed_shas = set()
-                other_branch_shas = {}
+                new_entries = []
                 while len(new_shas) > 0:
                     sha = new_shas.pop(0)
                     # Compute commit_count for this SHA
@@ -298,7 +267,11 @@ def poll_repos_loop():
 
                     if is_merge_commit(player_data['repo_path'], sha):
                         app.logger.info(f'commmit {sha} is merge')
-                        analysis = {'commit_classify': 'merge'}
+                        analysis = classify_commit(player_data['repo_path'], sha)
+                        # we call analysis because we need the other fields
+                        # but we rewrite classify, because we know it is a merge
+                        # TODO: clean this, merge detection should be inside classify
+                        analysis['commit_classify'] = 'merge'
                         #other = get_commit_other_parents(player_data['repo_path'],
                         #                                 sha)
                         # app.logger.info(f'retrieving other commits from {other}')
@@ -323,21 +296,38 @@ def poll_repos_loop():
                     # Append to history
                     entry = {
                         "commit": sha,
-                        "branch": other_branch_shas.get(sha,'main'),
-                        "score": count,
+                        "branches": get_commit_other_parents(
+                            player_data['repo_path'],sha),
                         "feedback": feedback,
                         "analysis": analysis,
                         "is_merge": False,
                     }
-                    player_data.setdefault('history', []).append(entry)
-
-                    # Update top‐level score & latest_feedback for admin
-                    player_data['score'] = count
-                    player_data['latest_feedback'] = feedback
-                    processed_shas.add(sha)
+                    new_entries.append(entry)
 
                 # Finally, set last_commit to the newest SHA (the last element of new_shas)
-                player_data['last_commit'] = new_head
+                update_player_field(game_id, player_id, 'last_commit', new_head)
+                print(f'player {player_id} last commit {new_head}')
+                update_player_field(game_id, player_id, 'latest_feedback', feedback)
+
+                # scores are computed last
+                score = score_all(player_data['history'] + new_entries)
+
+                for entry in new_entries:
+                    append_history_entry(game_id, player_id, entry)
+
+                #print('score: ', score)
+
+                # update scores in the history
+                #for sha in score['per_commit']:
+
+
+                # Update top‐level score & latest_feedback for admin
+                update_player_field(game_id, player_id, 'score',
+                                    score['overall_score'])
+                player_data['latest_feedback'] = feedback
+
+
+
 
 
 
@@ -345,6 +335,16 @@ def poll_repos_loop():
 @app.route('/')
 def index():
     """Home page: let user create a new game or join an existing one."""
+    # Build a dict of all games we know about
+    games = {}
+    for game_id in list_games():
+        game = get_game(game_id)
+        # meta is a dict with 'name' and 'status' strings
+        games[game_id] = {
+            'name': game.get('name', ''),
+            'status': game.get('status', '')
+        }
+    return render_template('index.html', games=games)
     return render_template('index.html')
 
 
@@ -361,12 +361,13 @@ def create_game():
         if game_id not in games:
             break
 
-    # Initialize the game in memory
-    games[game_id] = {
-        'name': game_name,
-        'status': 'running',
-        'players': {}
-    }
+    create_game_entry(game_id, game_name, status='running')
+    # # Initialize the game in memory
+    # games[game_id] = {
+    #     'name': game_name,
+    #     'status': 'running',
+    #     'players': {}
+    # }
 
     # Redirect to the admin dashboard for this new game
     return redirect(url_for('admin_dashboard', game_id=game_id))
@@ -375,7 +376,8 @@ def create_game():
 @app.route('/admin/<game_id>')
 def admin_dashboard(game_id):
     """Show admin dashboard for a given game."""
-    game = games.get(game_id)
+    game = load_game_with_histories(game_id)
+    print(game)
     if game is None:
         abort(404, description="Game not found")
 
@@ -385,30 +387,31 @@ def admin_dashboard(game_id):
 @app.route('/pause_game/<game_id>', methods=['POST'])
 def pause_game(game_id):
     """Pause the game."""
-    game = games.get(game_id)
+    game = get_game(game_id)
     if not game:
         abort(404)
-    game['status'] = 'paused'
+    update_game_status(game_id, 'paused')
     return redirect(url_for('admin_dashboard', game_id=game_id))
 
 
 @app.route('/resume_game/<game_id>', methods=['POST'])
 def resume_game(game_id):
     """Resume (unpause) the game."""
-    game = games.get(game_id)
+    game = get_game(game_id)
     if not game:
-        abort(404)
-    game['status'] = 'running'
+        abort(404,description="Game not found")
+    update_game_status(game_id, 'running')
     return redirect(url_for('admin_dashboard', game_id=game_id))
 
 
 @app.route('/stop_game/<game_id>', methods=['POST'])
 def stop_game(game_id):
     """Stop the game."""
-    game = games.get(game_id)
+    game = get_game(game_id)
     if not game:
-        abort(404)
-    game['status'] = 'stopped'
+        abort(404,description="Game not found")
+
+    update_game_status(game_id, 'stopped')
     return redirect(url_for('admin_dashboard', game_id=game_id))
 
 
@@ -417,9 +420,10 @@ def join_form(game_id):
     """
     Show the form to join an existing game by ID.
     """
-    game = games.get(game_id)
+    game = get_game(game_id)
     if not game:
-        abort(404, description="Game not found")
+        abort(404,description="Game not found")
+
     if game['status'] != 'running':
         return "Cannot join: game is not running", 400
     return render_template('join.html', game_id=game_id, game=game)
@@ -434,9 +438,9 @@ def join_game():
     if not game_id or not player_name or not repo_url:
         return "Missing game ID, player name, or repo URL", 400
 
-    game = games.get(game_id)
+    game = get_game(game_id)
     if not game:
-        return f"No game found with ID {game_id}", 404
+        abort(404,description="Game not found")
 
     if game['status'] != 'running':
         return "Cannot join: game is not running", 400
@@ -446,14 +450,16 @@ def join_game():
         return "Invalid GitHub repo URL", 400
 
     # Check if this repo is already registered in this game
-    for pid, p in game['players'].items():
+    players = list_players(game_id)
+    for pid in players:
+        p = get_player(game_id, pid)      # dict with name, score, etc.
         if p['repo_full_name'].lower() == repo_full_name.lower():
             return "That repository is already registered by another player in this game", 400
 
     # Create a new player ID
     while True:
         player_id = generate_id(6)
-        if player_id not in game['players']:
+        if player_id not in players:
             break
 
     # Set up initial player data (no commits yet)
@@ -466,20 +472,74 @@ def join_game():
         'repo_path': os.path.join(BASE_CLONE_DIR, game_id, player_id),
         'history': []
     }
-    game['players'][player_id] = player_data
+    create_player_entry(game_id, player_id, player_data)
     return redirect(url_for('player_view', game_id=game_id, player_id=player_id))
 
 @app.route('/player/<game_id>/<player_id>')
 def player_view(game_id, player_id):
-    """Show the player's personal dashboard: their history of commits/feedback."""
-    game = games.get(game_id)
+
+    """Show the player's dashboard: their score, feedback, and a global scoreboard."""
+    game = load_game_with_histories(game_id)
     if not game:
-        abort(404, description="Game not found")
+        abort(404,description="Game not found")
+
     player = game['players'].get(player_id)
     if not player:
         abort(404, description="Player not found")
-    return render_template('player.html', game_id=game_id, player_id=player_id, player=player)
 
+
+    # Pass the entire players dict for the scoreboard
+    return render_template(
+        'player.html',
+        game_id=game_id,
+        player_id=player_id,
+        player=player,
+        players=game['players']
+    )
+
+@app.route('/admin/<game_id>/<player_id>')
+def admin_player_view(game_id, player_id):
+    game = get_game(game_id)
+    if not game:
+        abort(404, "Game not found")
+
+    player = get_player(game_id, player_id)
+    if not player:
+        abort(404, "Player not found")
+
+    # Load full commit history
+    player['history'] = get_history(game_id, player_id)
+    # Ensure a paused flag is available
+    player['paused'] = player.get('paused', False)
+
+    return render_template(
+        'admin_player.html',
+        game_id=game_id,
+        player_id=player_id,
+        player=player
+    )
+@app.route('/admin/<game_id>/<player_id>/pause', methods=['POST'])
+def pause_player(game_id, player_id):
+    player = get_player(game_id, player_id)
+    if not player:
+        abort(404, "Player not found")
+
+    # Toggle the paused state
+    new_state = not player.get('paused', False)
+    update_player_field(game_id, player_id, 'paused', 1 if new_state else 0)
+    return redirect(url_for('admin_player_view', game_id=game_id, player_id=player_id))
+
+@app.route('/admin/<game_id>/<player_id>/reset_history', methods=['POST'])
+def reset_history(game_id, player_id):
+    player = get_player(game_id, player_id)
+    if not player:
+        abort(404, "Player not found")
+
+    # Clear the Redis list that holds their history
+    reset_player(game_id, player_id)
+
+
+    return redirect(url_for('admin_player_view', game_id=game_id, player_id=player_id))
 
 @app.route('/score/<game_id>/<player_id>')
 def get_score(game_id, player_id):
@@ -487,10 +547,10 @@ def get_score(game_id, player_id):
     Return JSON with the player's latest status, score, and latest feedback.
     Clients will poll this endpoint every few seconds.
     """
-    game = games.get(game_id)
+    game = get_game(game_id)
     if not game:
         return jsonify({'error': 'Game not found'}), 404
-    player = game['players'].get(player_id)
+    player = get_player(game_id, player_id)      # dict with name, score, etc.
     if not player:
         return jsonify({'error': 'Player not found'}), 404
 
@@ -501,17 +561,55 @@ def get_score(game_id, player_id):
     })
 
 
+from flask import jsonify
+
+# Scoreboard view
+@app.route('/player/<game_id>')
+def scoreboard_view(game_id):
+    game = get_game(game_id)
+    if not game:
+        abort(404, "Game not found")
+
+    # Load all players and their scores
+    players = {}
+    for pid in list_players(game_id):
+        pdata = get_player(game_id, pid)
+        players[pid] = { 'name': pdata['name'], 'score': float(pdata.get('score', 0)) }
+
+    return render_template(
+        'scoreboard.html',
+        game_id=game_id,
+        game=game,
+        players=players
+    )
+
+# JSON endpoint for dynamic updates\@app.route('/player/<game_id>/scores')
+def scoreboard_scores(game_id):
+    if not get_game(game_id):
+        abort(404, "Game not found")
+
+    data = []
+    for pid in list_players(game_id):
+        pdata = get_player(game_id, pid)
+        data.append({ 'id': pid, 'name': pdata['name'], 'score': float(pdata.get('score', 0)) })
+
+    # sort descending by score
+    data.sort(key=lambda x: x['score'], reverse=True)
+    return jsonify(players=data)
+
 @app.route('/history/<game_id>/<player_id>')
 def history_for_player(game_id, player_id):
     """
     Show commit history for a specific game and player.
     """
-    game = games.get(game_id)
+    game = get_game(game_id)
     if not game:
         abort(404, description="Game not found")
-    player = game['players'].get(player_id)
+    player = get_player(game_id, player_id)
     if not player:
         abort(404, description="Player not found")
+
+    player['history'] = get_history(game_id, player_id)
     # Render a page showing this player's full commit history
     return render_template('history.html', game_id=game_id, player=player)
 
@@ -528,6 +626,8 @@ def start_polling_thread():
 # -----------------------------------------------------------------------------
 # Run the Flask app
 # -----------------------------------------------------------------------------
+
+populate_db()
 
 start_polling_thread()
 
