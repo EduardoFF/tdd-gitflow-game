@@ -169,7 +169,7 @@ def get_history(game_id: str, player_id: str) -> list:
 
 def populate_db():
     games = {
-        "TDD-GitFlow": {
+        "TDD-GAME": {
             "name": "TDD-Gitflow Activity",
             "status": "running",
             "players": {
