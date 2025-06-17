@@ -123,7 +123,7 @@ def classify_commit(repo_path: str, commit_sha: str) -> dict:
 
     # 3) Check if tests or production code changed
     TEST_DIR      = "test_"
-    PROD_FILENAME = "fizzbuzz.py"
+    PROD_FILENAME = "calc.py"
     tests_changed = any(path.startswith(TEST_DIR) for path in modified_files)
     code_changed  = any(path.endswith(PROD_FILENAME) for path in modified_files)
 
