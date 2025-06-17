@@ -114,7 +114,7 @@ def create_player_entry(game_id: str, player_id: str, data: dict):
             'is_local': data.get('is_local', 0),
             'latest_feedback': data.get('latest_feedback', ''),
             'last_commit': data.get('last_commit', ''),
-            "repo_path": data.get('repo_path')
+            "repo_path": data.get('repo_path', '')
         }
     )
 
