@@ -42,6 +42,16 @@ tdd_game_bp = Blueprint(
 )
 
 app = Flask(__name__)
+from werkzeug.routing import Rule
+class PrefixRule(Rule):
+    def build(self, *args, **kwargs):
+        domain_part, url = super(PrefixRule, self).build(*args, **kwargs)
+
+        return domain_part, u'%s%s' % ('tdd-game', url)
+
+
+app.url_rule_class = PrefixRule
+
 
 # Create a stream handler
 #stream_handler = logging.StreamHandler()
