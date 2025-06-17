@@ -169,8 +169,8 @@ def get_history(game_id: str, player_id: str) -> list:
 
 def populate_db():
     games = {
-        "GAMEID": {
-            "name": "My TDD Battle",
+        "TDD-GitFlow": {
+            "name": "TDD-Gitflow Activity",
             "status": "running",
             "players": {
              # "PLAYERID": {
@@ -184,26 +184,26 @@ def populate_db():
              #     "history": []
 
              # },
-                "TESTER": {
-                    "name": "TestLocal",
-                    "repo_full_name": "LOCAL/fizzbuzz-tdd-inclass",
-                    "score": 0,
-                    "latest_feedback": "",    # same as history[-1]['feedback']
-                    "last_commit": '',
-                    "is_local": 1,  # repo is local
-                    "repo_path": "cloned_repos/GAMEID/TESTER",
-                    "history": []
-                },
+                # "TESTER": {
+                #     "name": "TestLocal",
+                #     "repo_full_name": "LOCAL/fizzbuzz-tdd-inclass",
+                #     "score": 0,
+                #     "latest_feedback": "",    # same as history[-1]['feedback']
+                #     "last_commit": '',
+                #     "is_local": 1,  # repo is local
+                #     "repo_path": "cloned_repos/GAMEID/TESTER",
+                #     "history": []
+                # },
 
-                "TESTER-REMOTE": {
-                    "name": "TestRemote",
-                    "repo_full_name": "EduardoFF/fizzbuzz-tdd-game1",
-                    "score": 0,
-                    "latest_feedback": "",    # same as history[-1]['feedback']
-                    "last_commit": '',
-                    "repo_path": "cloned_repos/GAMEID/TESTER-REMOTE",
-                    "history": []
-                },
+                # "EDUARDO": {
+                #     "name": "Team Eduardo",
+                #     "repo_full_name": "EduardoFF/fizzbuzz-tdd-game1",
+                #     "score": 0,
+                #     "latest_feedback": "",    # same as history[-1]['feedback']
+                #     "last_commit": '',
+                #     "repo_path": "cloned_repos/GAMEID/TESTER-REMOTE",
+                #     "history": []
+                # },
             }
         }
     }
