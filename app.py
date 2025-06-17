@@ -509,7 +509,7 @@ def join_game():
         'repo_full_name': repo_full_name,
         'score': 0,
         'latest_feedback': 'Waiting for initial pull…',
-        'last_commit': None,
+        'last_commit': '',
         'repo_path': os.path.join(BASE_CLONE_DIR, game_id, player_id),
         'history': []
     }
