@@ -110,7 +110,8 @@ def create_player_entry(game_id: str, player_id: str, data: dict):
         mapping={
             'name': data['name'],
             'repo_full_name': data['repo_full_name'],
-            'score': data.get('score', 0),
+             'score': data.get('score', 0),
+            'is_local': data.get('is_local', 0),
             'latest_feedback': data.get('latest_feedback', ''),
             'last_commit': data.get('last_commit', ''),
             "repo_path": data.get('repo_path')
@@ -189,7 +190,7 @@ def populate_db():
                     "score": 0,
                     "latest_feedback": "",    # same as history[-1]['feedback']
                     "last_commit": '',
-                    "is_local": True,  # repo is local
+                    "is_local": 1,  # repo is local
                     "repo_path": "cloned_repos/GAMEID/TESTER",
                     "history": []
                 },
