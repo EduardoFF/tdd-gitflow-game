@@ -411,7 +411,7 @@ def create_game():
     # }
 
     # Redirect to the admin dashboard for this new game
-    return redirect(url_for('admin_dashboard', game_id=game_id))
+    return redirect(url_for('tdd_game_bp.admin_dashboard', game_id=game_id))
 
 
 @tdd_game_bp.route('/admin/<game_id>')
@@ -432,7 +432,7 @@ def pause_game(game_id):
     if not game:
         abort(404)
     update_game_status(game_id, 'paused')
-    return redirect(url_for('admin_dashboard', game_id=game_id))
+    return redirect(url_for('tdd_game_bp.admin_dashboard', game_id=game_id))
 
 
 @tdd_game_bp.route('/resume_game/<game_id>', methods=['POST'])
@@ -442,7 +442,7 @@ def resume_game(game_id):
     if not game:
         abort(404,description="Game not found")
     update_game_status(game_id, 'running')
-    return redirect(url_for('admin_dashboard', game_id=game_id))
+    return redirect(url_for('tdd_game_bp.admin_dashboard', game_id=game_id))
 
 
 @tdd_game_bp.route('/stop_game/<game_id>', methods=['POST'])
@@ -453,7 +453,7 @@ def stop_game(game_id):
         abort(404,description="Game not found")
 
     update_game_status(game_id, 'stopped')
-    return redirect(url_for('admin_dashboard', game_id=game_id))
+    return redirect(url_for('tdd_game_bp.admin_dashboard', game_id=game_id))
 
 
 @tdd_game_bp.route('/join/<game_id>')
@@ -514,7 +514,7 @@ def join_game():
         'history': []
     }
     create_player_entry(game_id, player_id, player_data)
-    return redirect(url_for('player_view', game_id=game_id, player_id=player_id))
+    return redirect(url_for('tdd_game_bp.player_view', game_id=game_id, player_id=player_id))
 
 @tdd_game_bp.route('/player/<game_id>/<player_id>')
 def player_view(game_id, player_id):
@@ -568,7 +568,7 @@ def pause_player(game_id, player_id):
     # Toggle the paused state
     new_state = not player.get('paused', False)
     update_player_field(game_id, player_id, 'paused', 1 if new_state else 0)
-    return redirect(url_for('admin_player_view', game_id=game_id, player_id=player_id))
+    return redirect(url_for('tdd_game_bp.admin_player_view', game_id=game_id, player_id=player_id))
 
 @tdd_game_bp.route('/admin/<game_id>/<player_id>/reset_history', methods=['POST'])
 def reset_history(game_id, player_id):
@@ -580,7 +580,7 @@ def reset_history(game_id, player_id):
     reset_player(game_id, player_id)
 
 
-    return redirect(url_for('admin_player_view', game_id=game_id, player_id=player_id))
+    return redirect(url_for('tdd_game_bp.admin_player_view', game_id=game_id, player_id=player_id))
 
 @tdd_game_bp.route('/score/<game_id>/<player_id>')
 def get_score(game_id, player_id):
