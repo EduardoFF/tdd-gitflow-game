@@ -82,7 +82,7 @@
         <tr>
           <td>{{ loop.index }}</td>
           <td>{{ entry.commit[:7] }}</td>
-          <td>{{ entry.branch }}</td>
+          <td>{{ entry.branches }}</td>
           <td>
             {% if entry.analysis.commit_classify == 'green' %}
               <span class="icon green">🟢</span>
@@ -94,9 +94,9 @@
               <span class="icon unknown">❔</span>
             {% endif %}
           </td>
-          <td>{{ entry.analysis.passed_tests and '✔️' or '❌' }}</td>
+          <td>{{ entry.analysis.tests_passed and '✔️' or '❌' }}</td>
           <td>{{ entry.analysis.is_refactoring and '✔️' or '❌' }}</td>
-          <td>{{ entry.analysis.is_merge and '✔️' or '❌' }}</td>
+          <td>{{ entry.is_merge and '✔️' or '❌' }}</td>
           <td>{{ entry.score }}</td>
           <td>{{ entry.feedback }}</td>
         </tr>

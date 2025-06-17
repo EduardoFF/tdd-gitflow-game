@@ -114,9 +114,9 @@
         <tr>
           <th>#</th>
           <th>SHA</th>
-          <th>Branch</th>
-          <th>Type</th>
-          <th>Tests</th>
+          <th>Detected TDD Type</th>
+          <th>Tests Passed</th>
+	  <th>Merge</th>
           <th>Score</th>
           <th>Feedback</th>
         </tr>
@@ -126,7 +126,6 @@
         <tr class="{% if loop.last %}highlight{% endif %}">
           <td>{{ loop.index }}</td>
           <td>{{ entry.commit[:7] }}</td>
-          <td>{{ entry.branch }}</td>
           <td>
             {% if entry.analysis.commit_classify == 'green' %}
               <span class="icon green">🟢</span>
@@ -138,7 +137,8 @@
               <span class="icon unknown">❔</span>
             {% endif %}
           </td>
-          <td>{{ entry.analysis.passed_tests and '✔️' or '❌' }}</td>
+          <td>{{ entry.analysis.tests_passed and '✔️' or '❌' }}</td>
+	  <td>{{ entry.is_merge and '✔️' or '-' }}</td>
           <td>{{ entry.score }}</td>
           <td>{{ entry.feedback }}</td>
         </tr>

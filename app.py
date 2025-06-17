@@ -6,7 +6,13 @@ import time
 import subprocess
 import logging
 from flask import Flask, render_template, request, redirect, url_for, jsonify, abort
-from commit_analysis import classify_commits, classify_commit, is_merge_commit, get_commit_other_parents
+from commit_analysis import (
+    classify_commits,
+    classify_commit,
+    is_merge_commit,
+    get_commit_other_parents,
+    find_merge_commits
+    )
 from score import score_all
 
 from db import (
@@ -25,6 +31,7 @@ from db import (
     populate_db
 )
 
+from llm_analysis import analyze_commits_with_llm
 
 app = Flask(__name__)
 
@@ -289,16 +296,13 @@ def poll_repos_loop():
                     else:
                         analysis = classify_commit(player_data['repo_path'], sha)
 
-                    # Call LLM to analyze this single commit message
-                    #feedback = ask_llm_to_analyze(msg)
-                    feedback = "yey"
 
                     # Append to history
                     entry = {
                         "commit": sha,
                         "branches": get_commit_other_parents(
                             player_data['repo_path'],sha),
-                        "feedback": feedback,
+                        "feedback": '',
                         "analysis": analysis,
                         "is_merge": False,
                     }
@@ -307,13 +311,28 @@ def poll_repos_loop():
                 # Finally, set last_commit to the newest SHA (the last element of new_shas)
                 update_player_field(game_id, player_id, 'last_commit', new_head)
                 print(f'player {player_id} last commit {new_head}')
-                update_player_field(game_id, player_id, 'latest_feedback', feedback)
+
+                # detect merges
+                find_merge_commits(new_entries)
 
                 # scores are computed last
                 score = score_all(player_data['history'] + new_entries)
 
+                # Call LLM to analyze single commits
+
+                feedback = analyze_commits_with_llm(new_entries)
+                print(feedback)
+
+                pc_feedback = feedback['per_commit_feedback']
+                for i in range(len(new_entries)):
+                    new_entries[i]['feedback'] = pc_feedback[i]['feedback']
+                    if new_entries[i]['commit'] != pc_feedback[i]['commit']:
+                        print('WARNING: commit sha does not match in feedback')
+
+
                 for entry in new_entries:
                     append_history_entry(game_id, player_id, entry)
+
 
                 #print('score: ', score)
 
@@ -324,7 +343,11 @@ def poll_repos_loop():
                 # Update top‐level score & latest_feedback for admin
                 update_player_field(game_id, player_id, 'score',
                                     score['overall_score'])
-                player_data['latest_feedback'] = feedback
+                player_data['latest_feedback'] = feedback['overall_feedback']
+                update_player_field(game_id, player_id,
+                                    'latest_feedback',
+                                    player_data['latest_feedback'])
+
 
 
 

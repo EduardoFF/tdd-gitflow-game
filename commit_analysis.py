@@ -70,27 +70,21 @@ def count_pytest_tests(repo_path: str) -> int:
 
 def get_commit_other_parents(repo_path: str, commit_sha: str) -> list:
     repo = git.Repo(repo_path)
-    commit = repo.commit(commit_sha)
      # Only consider parents beyond the first (parent[0] is the “mainline”)
-    other_parents = commit.parents[1:]
-    result = []
+    branches_output = repo.git.branch('--contains', commit_sha)
 
-    for parent in other_parents:
-        sha = parent.hexsha
-        # `git branch --contains <sha>` lists all branches whose history includes the SHA
-        branches_output = repo.git.branch('--contains', sha)
-
-        # Parse lines like:
-        #   * main
-        #     feature/foo
-        #     remotes/origin/feature/foo
-        names = []
-        for line in branches_output.splitlines():
-            # strip leading '*' (current HEAD) and whitespace
-            name = line.lstrip('* ').strip()
-            if name and name != 'main':
-                result.append(name)
-    return result
+    # Parse lines like:
+    #   * main
+    #     feature/foo
+    #     remotes/origin/feature/foo
+    names = []
+    for line in branches_output.splitlines():
+        # strip leading '*' (current HEAD) and whitespace
+        name = line.lstrip('* ').strip()
+        if 'HEAD' in name or 'main' in name:
+            continue
+        names.append(name)
+    return names
 
 def is_merge_commit(repo_path: str, commit_sha: str) -> bool:
     repo = git.Repo(repo_path)
@@ -209,3 +203,20 @@ def classify_commits(repo_path: str) -> dict:
     repo.git.checkout("main")
     print(classification)
     return classification
+
+def find_merge_commits(entries):
+    all_branches = set()
+    # first get all branches
+    for entry in entries:
+        for b in entry['branches']:
+            all_branches.add(b)
+    all_branches = list(all_branches)
+    # last entry (if it contains some branch, it was fast-forward merge)
+    if len(entries[-1]['branches']) > 0:
+        entries[-1]['is_merge'] = 1
+    for b in all_branches:
+        for i in range(len(entries)-2, 0, -1):
+            if b in entries[i]['branches'] and \
+               b not in entries[i+1]['branches']:
+                entries[i]['is_merge'] = 1
+                break
