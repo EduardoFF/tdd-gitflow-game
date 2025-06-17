@@ -51,7 +51,7 @@
       <tbody>
         {% for pid, p in players.items() %}
         <tr data-player="{{ pid }}" class="{% if loop.first %}top-team{% endif %}">
-          <td><a href="{{ url_for('player_view', game_id=game_id, player_id=pid) }}">{{ p.name }}</a></td>
+          <td><a href="{{ url_for('tdd_game_bp.player_view', game_id=game_id, player_id=pid) }}">{{ p.name }}</a></td>
           <td class="score">{{ p.score }}</td>
         </tr>
         {% endfor %}
@@ -60,15 +60,29 @@
   </div>
   <script>
     const gameId = "{{ game_id }}";
+    const urlTemplate = "{{ url_for('tdd_game_bp.player_view', game_id=game_id, player_id='__PID__') }}";
     function refreshScores() {
-      fetch(`/player/${gameId}/scores`)
+      fetch(`/tdd-game/player/${gameId}/scores`)
         .then(res => res.json())
-        .then(data => {
-          data.players.forEach(item => {
-            const row = document.querySelector(`tr[data-player="${item.id}"]`);
-            if (row) row.querySelector('.score').innerText = item.score;
-          });
-        });
+            .then(data => {
+		const tbody = document.querySelector('table.scoreboard tbody');
+		tbody.innerHTML = '';
+		console.log(data.players);
+		data.players.forEach((item, idx) => {
+		    const tr = document.createElement('tr');
+		    tr.dataset.player = item.id;
+		    if (idx === 0) tr.classList.add('top-team');
+		    const aHref = urlTemplate.replace('__PID__', item.id);
+		    tr.innerHTML = `
+              <td><a href="${aHref}">${item.name}</a>${idx===0?'<span class="fire">🔥</span>':''}</td>
+              <td class="score">${item.score}</td>
+            `;
+		    tbody.appendChild(tr);
+
+		    const row = document.querySelector(`tr[data-player="${item.id}"]`);
+		    if (row) row.querySelector('.score').innerText = item.score;
+		});
+            });
     }
     setInterval(refreshScores, 2000);
   </script>

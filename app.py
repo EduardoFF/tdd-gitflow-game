@@ -5,7 +5,7 @@ import threading
 import time
 import subprocess
 import logging
-from flask import Flask, render_template, request, redirect, url_for, jsonify, abort
+from flask import Flask, render_template, request, redirect, url_for, jsonify, abort, Blueprint
 from commit_analysis import (
     classify_commits,
     classify_commit,
@@ -32,6 +32,14 @@ from db import (
 )
 
 from llm_analysis import analyze_commits_with_llm
+
+
+# Create a blueprint for the TDD game
+tdd_game_bp = Blueprint(
+    'tdd_game_bp',        # blueprint name
+    __name__,          # module
+    url_prefix='/tdd-game'
+)
 
 app = Flask(__name__)
 
@@ -355,7 +363,7 @@ def poll_repos_loop():
 
 
 
-@app.route('/')
+@tdd_game_bp.route('/')
 def index():
     """Home page: let user create a new game or join an existing one."""
     # Build a dict of all games we know about
@@ -371,7 +379,7 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/create_game', methods=['POST'])
+@tdd_game_bp.route('/create_game', methods=['POST'])
 def create_game():
     """Handle game creation: user provides a game name."""
     game_name = request.form.get('game_name', '').strip()
@@ -396,7 +404,7 @@ def create_game():
     return redirect(url_for('admin_dashboard', game_id=game_id))
 
 
-@app.route('/admin/<game_id>')
+@tdd_game_bp.route('/admin/<game_id>')
 def admin_dashboard(game_id):
     """Show admin dashboard for a given game."""
     game = load_game_with_histories(game_id)
@@ -407,7 +415,7 @@ def admin_dashboard(game_id):
     return render_template('admin.html', game_id=game_id, game=game)
 
 
-@app.route('/pause_game/<game_id>', methods=['POST'])
+@tdd_game_bp.route('/pause_game/<game_id>', methods=['POST'])
 def pause_game(game_id):
     """Pause the game."""
     game = get_game(game_id)
@@ -417,7 +425,7 @@ def pause_game(game_id):
     return redirect(url_for('admin_dashboard', game_id=game_id))
 
 
-@app.route('/resume_game/<game_id>', methods=['POST'])
+@tdd_game_bp.route('/resume_game/<game_id>', methods=['POST'])
 def resume_game(game_id):
     """Resume (unpause) the game."""
     game = get_game(game_id)
@@ -427,7 +435,7 @@ def resume_game(game_id):
     return redirect(url_for('admin_dashboard', game_id=game_id))
 
 
-@app.route('/stop_game/<game_id>', methods=['POST'])
+@tdd_game_bp.route('/stop_game/<game_id>', methods=['POST'])
 def stop_game(game_id):
     """Stop the game."""
     game = get_game(game_id)
@@ -438,7 +446,7 @@ def stop_game(game_id):
     return redirect(url_for('admin_dashboard', game_id=game_id))
 
 
-@app.route('/join/<game_id>')
+@tdd_game_bp.route('/join/<game_id>')
 def join_form(game_id):
     """
     Show the form to join an existing game by ID.
@@ -451,7 +459,7 @@ def join_form(game_id):
         return "Cannot join: game is not running", 400
     return render_template('join.html', game_id=game_id, game=game)
 
-@app.route('/join_game', methods=['POST'])
+@tdd_game_bp.route('/join_game', methods=['POST'])
 def join_game():
     """Handle user joining a game: form fields → game_id, player_name, repo_url."""
     game_id = request.form.get('game_id', '').strip().upper()
@@ -498,7 +506,7 @@ def join_game():
     create_player_entry(game_id, player_id, player_data)
     return redirect(url_for('player_view', game_id=game_id, player_id=player_id))
 
-@app.route('/player/<game_id>/<player_id>')
+@tdd_game_bp.route('/player/<game_id>/<player_id>')
 def player_view(game_id, player_id):
 
     """Show the player's dashboard: their score, feedback, and a global scoreboard."""
@@ -520,7 +528,7 @@ def player_view(game_id, player_id):
         players=game['players']
     )
 
-@app.route('/admin/<game_id>/<player_id>')
+@tdd_game_bp.route('/admin/<game_id>/<player_id>')
 def admin_player_view(game_id, player_id):
     game = get_game(game_id)
     if not game:
@@ -541,7 +549,7 @@ def admin_player_view(game_id, player_id):
         player_id=player_id,
         player=player
     )
-@app.route('/admin/<game_id>/<player_id>/pause', methods=['POST'])
+@tdd_game_bp.route('/admin/<game_id>/<player_id>/pause', methods=['POST'])
 def pause_player(game_id, player_id):
     player = get_player(game_id, player_id)
     if not player:
@@ -552,7 +560,7 @@ def pause_player(game_id, player_id):
     update_player_field(game_id, player_id, 'paused', 1 if new_state else 0)
     return redirect(url_for('admin_player_view', game_id=game_id, player_id=player_id))
 
-@app.route('/admin/<game_id>/<player_id>/reset_history', methods=['POST'])
+@tdd_game_bp.route('/admin/<game_id>/<player_id>/reset_history', methods=['POST'])
 def reset_history(game_id, player_id):
     player = get_player(game_id, player_id)
     if not player:
@@ -564,7 +572,7 @@ def reset_history(game_id, player_id):
 
     return redirect(url_for('admin_player_view', game_id=game_id, player_id=player_id))
 
-@app.route('/score/<game_id>/<player_id>')
+@tdd_game_bp.route('/score/<game_id>/<player_id>')
 def get_score(game_id, player_id):
     """
     Return JSON with the player's latest status, score, and latest feedback.
@@ -587,7 +595,7 @@ def get_score(game_id, player_id):
 from flask import jsonify
 
 # Scoreboard view
-@app.route('/player/<game_id>')
+@tdd_game_bp.route('/player/<game_id>')
 def scoreboard_view(game_id):
     game = get_game(game_id)
     if not game:
@@ -606,7 +614,8 @@ def scoreboard_view(game_id):
         players=players
     )
 
-# JSON endpoint for dynamic updates\@app.route('/player/<game_id>/scores')
+# JSON endpoint for dynamic updates\
+@tdd_game_bp.route('/player/<game_id>/scores')
 def scoreboard_scores(game_id):
     if not get_game(game_id):
         abort(404, "Game not found")
@@ -618,9 +627,10 @@ def scoreboard_scores(game_id):
 
     # sort descending by score
     data.sort(key=lambda x: x['score'], reverse=True)
+    print("data", data)
     return jsonify(players=data)
 
-@app.route('/history/<game_id>/<player_id>')
+@tdd_game_bp.route('/history/<game_id>/<player_id>')
 def history_for_player(game_id, player_id):
     """
     Show commit history for a specific game and player.
@@ -649,6 +659,8 @@ def start_polling_thread():
 # -----------------------------------------------------------------------------
 # Run the Flask app
 # -----------------------------------------------------------------------------
+
+app.register_blueprint(tdd_game_bp)
 
 populate_db()
 

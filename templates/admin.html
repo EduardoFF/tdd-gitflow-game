@@ -25,17 +25,17 @@
 
   <div class="controls">
     {% if game.status == 'running' %}
-      <form action="{{ url_for('pause_game', game_id=game_id) }}" method="POST">
+      <form action="{{ url_for('tdd_game_bp.pause_game', game_id=game_id) }}" method="POST">
         <input type="submit" value="Pause Game">
       </form>
-      <form action="{{ url_for('stop_game', game_id=game_id) }}" method="POST">
+      <form action="{{ url_for('tdd_game_bp.stop_game', game_id=game_id) }}" method="POST">
         <input type="submit" value="Stop Game">
       </form>
     {% elif game.status == 'paused' %}
-      <form action="{{ url_for('resume_game', game_id=game_id) }}" method="POST">
+      <form action="{{ url_for('tdd_game_bp.resume_game', game_id=game_id) }}" method="POST">
         <input type="submit" value="Resume Game">
       </form>
-      <form action="{{ url_for('stop_game', game_id=game_id) }}" method="POST">
+      <form action="{{ url_for('tdd_game_bp.stop_game', game_id=game_id) }}" method="POST">
         <input type="submit" value="Stop Game">
       </form>
     {% endif %}
@@ -56,7 +56,7 @@
       <tbody>
         {% for pid, p in game.players.items() %}
         <tr>
-          <td><a href="{{ url_for('admin_player_view', game_id=game_id, player_id=pid) }}">{{ pid }}</a></td>
+          <td><a href="{{ url_for('tdd_game_bp.admin_player_view', game_id=game_id, player_id=pid) }}">{{ pid }}</a></td>
           <td>{{ p.name }}</td>
           <td>{{ p.repo_full_name }}</td>
           <td>{{ p.score }}</td>
@@ -70,7 +70,7 @@
   {% endif %}
 
   <p style="margin-top: 2em;">
-    <a href="{{ url_for('index') }}">← Back to Home</a>
+    <a href="{{ url_for('tdd_game_bp.index') }}">← Back to Home</a>
   </p>
 </body>
 </html>

@@ -14,7 +14,7 @@
 </head>
 <body>
   <h1>Join Game: {{ game.name }} (ID: {{ game_id }})</h1>
-  <form action="{{ url_for('join_game') }}" method="POST">
+  <form action="{{ url_for('tdd_game_bp.join_game') }}" method="POST">
     <input type="hidden" name="game_id" value="{{ game_id }}">
     <label for="player_name">Your Name:</label>
     <input type="text" name="player_name" id="player_name" placeholder="e.g. 'Alice'" required>
@@ -26,7 +26,7 @@
   </form>
 
   <p style="margin-top: 2em;">
-    <a href="{{ url_for('index') }}">← Back to Home</a>
+    <a href="{{ url_for('tdd_game_bp.index') }}">← Back to Home</a>
   </p>
 </body>
 </html>

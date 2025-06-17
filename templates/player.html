@@ -150,13 +150,13 @@
     <p>No commits processed yet for this player.</p>
   {% endif %}
 
-  <p><a href="{{ url_for('index') }}">← Back to Home</a></p>
+  <p><a href="{{ url_for('tdd_game_bp.index') }}">← Back to Home</a></p>
 
   <script>
     const gameId = "{{ game_id }}";
     const playerId = "{{ player_id }}";
     function fetchScore() {
-      fetch(`/score/${gameId}/${playerId}`)
+      fetch(`/tdd-game/score/${gameId}/${playerId}`)
         .then(res => res.json())
         .then(data => {
           const status = document.getElementById('status');
@@ -173,6 +173,34 @@
         });
     }
     setInterval(fetchScore, 5000);
+
+    const urlTemplate = "{{ url_for('tdd_game_bp.player_view', game_id=game_id, player_id='__PID__') }}";
+    function fetchScores() {
+      fetch(`/tdd-game/player/${gameId}/scores`)
+        .then(res => res.json())
+            .then(data => {
+		const tbody = document.querySelector('table.scoreboard tbody');
+		tbody.innerHTML = '';
+		console.log(data.players);
+		data.players.forEach((item, idx) => {
+		    const tr = document.createElement('tr');
+		    tr.dataset.player = item.id;
+		    if (idx === 0) tr.classList.add('top-team');
+		    const aHref = urlTemplate.replace('__PID__', item.id);
+		    tr.innerHTML = `
+              <td><a href="${aHref}">${item.name}</a>${idx===0?'<span class="fire">🔥</span>':''}</td>
+              <td class="score">${item.score}</td>
+            `;
+		    tbody.appendChild(tr);
+
+		    const row = document.querySelector(`tr[data-player="${item.id}"]`);
+		    if (row) row.querySelector('.score').innerText = item.score;
+		});
+            });
+    }
+
+    fetchScores();
+    setInterval(fetchScores, 2000);
   </script>
 </body>
 </html>

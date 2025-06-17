@@ -70,8 +70,52 @@
   <div class="container">
     <h1>Welcome to TDD-Gitflow Game</h1>
 
+    <section id="game-rules">
+  <h2>Learning Objectives</h2>
+  <ul>
+    <li>Practice TDD principles using a simple exercise</li>
+    <li>Get familiar with common Git commands: creating commits, branching, and merging</li>
+    <li>Practice GitFlow for collaborative development</li>
+    <li>Have some fun</li>
+  </ul>
+
+  <h2>Getting Started</h2>
+  <p>You are given a TDD kata in this repo: <a href="https://github.com/EduardoFF/stringcalculator-tdd" target="_blank">github.com/EduardoFF/stringcalculator-tdd</a></p>
+  <ul>
+    <li>Fork the repo into a team repo (one team member can do this)</li>
+    <li>Add all team members as collaborators so everyone can push commits</li>
+  </ul>
+
+  <h2>Rules of the Game</h2>
+  <p>Work through the TDD cycle for each feature, committing after every step:</p>
+  <ol>
+    <li><strong>Red</strong>: write a test that fails → commit</li>
+    <li><strong>Green</strong>: implement the simplest code to pass tests → commit</li>
+    <li><strong>Refactor</strong>: clean up code if needed → commit</li>
+    <li>Repeat</li>
+  </ol>
+  <p>Each commit is scored. To maximize your points:</p>
+  <ul>
+    <li>Maintain the correct TDD sequence</li>
+    <li>Do each cycle in a separate branch, then merge back into <code>main</code> in a green state</li>
+  </ul>
+  <p>The scoring is heuristic; you don’t need to understand it. The more
+  faithfully you follow TDD and GitFlow, and the more well-structured commits
+  you make, the higher your score will be.</p>
+
+  <h2>Hints</h2>
+  <ul>
+    <li>Create a feature branch for each cycle</li>
+    <li>Complete <em>red → green → refactor</em> on that branch</li>
+    <li>Merge back into <code>main</code> only when tests are green</li>
+    <li>Using branches lets teammates work in parallel and practice more Git commands</li>
+    <li>Do not mix writing test cases and implementing in a single commit</li>
+  </ul>
+    </section>
+
+
     <h2>Create a New Game</h2>
-    <form action="{{ url_for('create_game') }}" method="POST">
+    <form action="{{ url_for('tdd_game_bp.create_game') }}" method="POST">
       <label for="game_name">Game Name:</label>
       <input type="text" name="game_name" id="game_name" placeholder="e.g. 'FizzBuzz Showdown'" required>
       <input type="submit" value="Create Game">
@@ -80,7 +124,7 @@
     <hr>
 
     <h2>Join an Existing Game</h2>
-    <form action="{{ url_for('join_form', game_id='') }}" method="GET" onsubmit="return goToGame()">
+    <form action="{{ url_for('tdd_game_bp.join_form', game_id='') }}" method="GET" onsubmit="return goToGame()">
       <label for="join_game_id">Enter Game ID:</label>
       <input type="text" name="game_id" id="join_game_id" placeholder="e.g. ABC123" required>
       <input type="submit" value="Join Game">
@@ -100,7 +144,7 @@
           <tr>
             <td>{{ gid }}</td>
             <td>{{ g.name }}</td>
-            <td><a href="{{ url_for('scoreboard_view', game_id=gid) }}">View Scoreboard</a></td>
+            <td><a href="{{ url_for('tdd_game_bp.scoreboard_view', game_id=gid) }}">View Scoreboard</a></td>
           </tr>
           {% endfor %}
         </tbody>
@@ -109,6 +153,7 @@
     {% else %}
       <p>No active games. Create one above!</p>
     {% endif %}
+
 
     <p style="margin-top: 2em;">
       <a href="#">Learn more about TDD & GitFlow →</a>
@@ -119,7 +164,7 @@
     function goToGame() {
       const gid = document.getElementById('join_game_id').value.trim().toUpperCase();
       if (!gid) return false;
-      window.location.href = "{{ url_for('join_form', game_id='__REPLACE__') }}".replace('__REPLACE__', gid);
+      window.location.href = "{{ url_for('tdd_game_bp.join_form', game_id='__REPLACE__') }}".replace('__REPLACE__', gid);
       return false;
     }
   </script>
