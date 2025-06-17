@@ -188,7 +188,7 @@ def initialize_or_pull_repo(game_id, player_id, player_data):
 
 
     # 1) If the directory doesn't exist, do a 'git clone <url> <local_path>'
-    if not os.path.isdir(os.path.join(local_path, '.git')) and not player.get('is_local', False):
+    if not os.path.isdir(os.path.join(local_path, '.git')) and not player.get('is_local', '0') == '1':
         clone_url = f"https://github.com/{player_data['repo_full_name']}.git"
         print(f"cloning {clone_url} into {local_path}")
         ret, out, err = run_subprocess(['git', 'clone', clone_url, local_path])
