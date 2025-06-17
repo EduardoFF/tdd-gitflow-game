@@ -104,6 +104,7 @@ def create_player_entry(game_id: str, player_id: str, data: dict):
     Register a new player in a game. Data should contain:
       - name, repo_full_name, score, latest_feedback, last_commit
     """
+    print("PLAYER:", data)
     redis_client.sadd(players_set.format(game_id=game_id), player_id)
     redis_client.hset(
         player_hash.format(game_id=game_id, player_id=player_id),
