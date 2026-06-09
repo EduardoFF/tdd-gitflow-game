@@ -38,7 +38,7 @@ from llm_analysis import analyze_commits_with_llm
 tdd_game_bp = Blueprint(
     'tdd_game_bp',        # blueprint name
     __name__,          # module
-    url_prefix='/tdd-game'
+    url_prefix='/'
 )
 
 app = Flask(__name__)
@@ -188,7 +188,7 @@ def initialize_or_pull_repo(game_id, player_id, player_data):
 
 
     # 1) If the directory doesn't exist, do a 'git clone <url> <local_path>'
-    if not os.path.isdir(os.path.join(local_path, '.git')) and not player.get('is_local', '0') == '1':
+    if not os.path.isdir(os.path.join(local_path, '.git')):
         clone_url = f"https://github.com/{player_data['repo_full_name']}.git"
         print(f"cloning {clone_url} into {local_path}")
         ret, out, err = run_subprocess(['git', 'clone', clone_url, local_path])
@@ -207,14 +207,13 @@ def initialize_or_pull_repo(game_id, player_id, player_data):
         return (None, None, None)
 
     # 2) Do 'git pull' inside local_path
-    if not player_data.get('is_local', False):
 
-        ret, out, err = run_subprocess(['git', 'pull'], cwd=local_path)
-        if ret != 0:
-            update_player_field(game_id, player_id,
+    ret, out, err = run_subprocess(['git', 'pull'], cwd=local_path)
+    if ret != 0:
+        update_player_field(game_id, player_id,
                             'latest_feedback',
-                                f"Error pulling: {err}")
-            return (None, None, None)
+                            f"Error pulling: {err}")
+        return (None, None, None)
 
     # 3) Get current HEAD commit hash: `git rev-parse HEAD`
     ret, head_hash, err = run_subprocess(['git', 'rev-parse', 'HEAD'], cwd=local_path)
