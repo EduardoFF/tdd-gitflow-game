@@ -42,15 +42,15 @@ tdd_game_bp = Blueprint(
 )
 
 app = Flask(__name__)
-from werkzeug.routing import Rule
-class PrefixRule(Rule):
-    def build(self, *args, **kwargs):
-        domain_part, url = super(PrefixRule, self).build(*args, **kwargs)
 
-        return domain_part, u'%s%s' % ('tdd-game', url)
-
-
-app.url_rule_class = PrefixRule
+URL_PREFIX = os.environ.get('URL_PREFIX', '')
+if URL_PREFIX:
+    from werkzeug.routing import Rule
+    class PrefixRule(Rule):
+        def build(self, *args, **kwargs):
+            domain_part, url = super().build(*args, **kwargs)
+            return domain_part, f'{URL_PREFIX}{url}'
+    app.url_rule_class = PrefixRule
 
 
 # Create a stream handler
@@ -396,9 +396,10 @@ def create_game():
         return "Game name is required", 400
 
     # Generate a unique game ID
+    existing_games = list_games()
     while True:
         game_id = generate_id(6)
-        if game_id not in games:
+        if game_id not in existing_games:
             break
 
     create_game_entry(game_id, game_name, status='running')
