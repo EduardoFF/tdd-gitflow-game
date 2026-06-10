@@ -261,109 +261,85 @@ def poll_repos_loop():
             if game_data['status'] != 'running':
                 continue
             for player_id in list_players(game_id):
-                player_data = game_data['players'].get(player_id)
-                # If the game was paused/stopped in the meantime, skip
-                if game_data['status'] != 'running':
-                    continue
+                try:
+                    player_data = game_data['players'].get(player_id)
+                    # If the game was paused/stopped in the meantime, skip
+                    if game_data['status'] != 'running':
+                        continue
 
-                new_head, _, new_shas = initialize_or_pull_repo(game_id, player_id, player_data)
-                print(new_shas)
-                if new_head is None:
-                    # Error message is already in player_data['latest_feedback']
-                    continue
+                    new_head, _, new_shas = initialize_or_pull_repo(game_id, player_id, player_data)
+                    print(new_shas)
+                    if new_head is None:
+                        # Error message is already in player_data['latest_feedback']
+                        continue
 
-                #classify_commits(player_data.get('repo_path'))
-                last_head = player_data.get('last_commit')
-                print('last head: ', last_head)
-                if not new_shas:
-                    # No new commits → skip
-                    continue
+                    last_head = player_data.get('last_commit')
+                    print('last head: ', last_head)
+                    if not new_shas:
+                        # No new commits → skip
+                        continue
 
-                # Process each new commit SHA in chronological order (only for main)
-                new_entries = []
-                while len(new_shas) > 0:
-                    sha = new_shas.pop(0)
-                    # Compute commit_count for this SHA
-                    count = get_commit_count(player_data['repo_path'], sha) or 0
+                    # Process each new commit SHA in chronological order (only for main)
+                    new_entries = []
+                    while len(new_shas) > 0:
+                        sha = new_shas.pop(0)
+                        count = get_commit_count(player_data['repo_path'], sha) or 0
+                        msg = get_commit_message(player_data['repo_path'], sha) or "(no commit message)"
 
-                    # Retrieve the commit message for this SHA
-                    msg = get_commit_message(player_data['repo_path'], sha) or "(no commit message)"
+                        if is_merge_commit(player_data['repo_path'], sha):
+                            app.logger.info(f'commmit {sha} is merge')
+                            analysis = classify_commit(player_data['repo_path'], sha)
+                            # we call analysis because we need the other fields
+                            # but we rewrite classify, because we know it is a merge
+                            # TODO: clean this, merge detection should be inside classify
+                            analysis['commit_classify'] = 'merge'
+                        else:
+                            analysis = classify_commit(player_data['repo_path'], sha)
 
-                    if is_merge_commit(player_data['repo_path'], sha):
-                        app.logger.info(f'commmit {sha} is merge')
-                        analysis = classify_commit(player_data['repo_path'], sha)
-                        # we call analysis because we need the other fields
-                        # but we rewrite classify, because we know it is a merge
-                        # TODO: clean this, merge detection should be inside classify
-                        analysis['commit_classify'] = 'merge'
-                        #other = get_commit_other_parents(player_data['repo_path'],
-                        #                                 sha)
-                        # app.logger.info(f'retrieving other commits from {other}')
+                        entry = {
+                            "commit": sha,
+                            "message": msg,
+                            "branches": get_commit_other_parents(
+                                player_data['repo_path'], sha),
+                            "feedback": '',
+                            "analysis": analysis,
+                            "is_merge": False,
+                        }
+                        new_entries.append(entry)
 
-                        # for otherbranch in other[::-1]:
-                        #     other_commits = get_all_commit_shas(
-                        #         player_data['repo_path'], branch=otherbranch)
-                        #     app.logger.info(f'added other commmits {other_commits} from {otherbranch}')
-                        #     for othersha in other_commits:
-                        #         if othersha not in processed_shas:
-                        #             new_shas.insert(0, othersha)
-                        #             other_branch_shas[othersha] = otherbranch
-                        # app.logger.info(f'commmit {sha} merge from {other}')
+                    # detect merges
+                    find_merge_commits(new_entries)
 
-                    else:
-                        analysis = classify_commit(player_data['repo_path'], sha)
+                    # scores are computed last
+                    score = score_all(player_data['history'] + new_entries)
 
+                    # Call LLM to analyze commits
+                    feedback = analyze_commits_with_llm(new_entries)
+                    print(feedback)
 
-                    # Append to history
-                    entry = {
-                        "commit": sha,
-                        "branches": get_commit_other_parents(
-                            player_data['repo_path'],sha),
-                        "feedback": '',
-                        "analysis": analysis,
-                        "is_merge": False,
-                    }
-                    new_entries.append(entry)
+                    pc_feedback = feedback['per_commit_feedback']
+                    for i in range(len(new_entries)):
+                        new_entries[i]['feedback'] = pc_feedback[i]['feedback']
+                        if new_entries[i]['commit'] != pc_feedback[i]['commit']:
+                            app.logger.warning('commit sha does not match in feedback')
 
-                # Finally, set last_commit to the newest SHA (the last element of new_shas)
-                update_player_field(game_id, player_id, 'last_commit', new_head)
-                print(f'player {player_id} last commit {new_head}')
+                    # Store history entries first, then advance last_commit so a
+                    # failure above does not permanently skip commits.
+                    for entry in new_entries:
+                        append_history_entry(game_id, player_id, entry)
 
-                # detect merges
-                find_merge_commits(new_entries)
+                    update_player_field(game_id, player_id, 'last_commit', new_head)
+                    print(f'player {player_id} last commit {new_head}')
 
-                # scores are computed last
-                score = score_all(player_data['history'] + new_entries)
+                    # Update top-level score & latest_feedback for admin
+                    update_player_field(game_id, player_id, 'score',
+                                        score['overall_score'])
+                    update_player_field(game_id, player_id,
+                                        'latest_feedback',
+                                        feedback['overall_feedback'])
 
-                # Call LLM to analyze single commits
-
-                feedback = analyze_commits_with_llm(new_entries)
-                print(feedback)
-
-                pc_feedback = feedback['per_commit_feedback']
-                for i in range(len(new_entries)):
-                    new_entries[i]['feedback'] = pc_feedback[i]['feedback']
-                    if new_entries[i]['commit'] != pc_feedback[i]['commit']:
-                        print('WARNING: commit sha does not match in feedback')
-
-
-                for entry in new_entries:
-                    append_history_entry(game_id, player_id, entry)
-
-
-                #print('score: ', score)
-
-                # update scores in the history
-                #for sha in score['per_commit']:
-
-
-                # Update top‐level score & latest_feedback for admin
-                update_player_field(game_id, player_id, 'score',
-                                    score['overall_score'])
-                player_data['latest_feedback'] = feedback['overall_feedback']
-                update_player_field(game_id, player_id,
-                                    'latest_feedback',
-                                    player_data['latest_feedback'])
+                except Exception as e:
+                    app.logger.error(f'Error processing player {player_id} in game {game_id}: {e}', exc_info=True)
 
 
 
