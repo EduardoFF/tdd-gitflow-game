@@ -119,7 +119,20 @@ def score_all(commits_info: list) -> dict:
 
 
 
-    for ci, b, t, tdesc in zip(commits_info, bases, trans, trans_desc):
+    for idx, (ci, b, t, tdesc) in enumerate(zip(commits_info, bases, trans, trans_desc)):
+        # first commit is a repo-setup commit; exclude it from scoring
+        if idx == 0:
+            detailed.append({
+                "commit":           ci["commit"],
+                "branches":         ci["branches"],
+                "base_score":       0.0,
+                "transition_bonus": 0.0,
+                "transition":       tdesc,
+                "merge_score":      0.0,
+                "total_score":      0.0,
+            })
+            continue
+
         # 5c) merge‐non‐green penalty
         mp = 0.0
         if ci["is_merge"] and ci["analysis"]["commit_classify"] != "green":
@@ -132,7 +145,7 @@ def score_all(commits_info: list) -> dict:
 
         detailed.append({
             "commit":           ci["commit"],
-            "branches":           ci["branches"],
+            "branches":         ci["branches"],
             "base_score":       b,
             "transition_bonus": t,
             "transition":       tdesc,
